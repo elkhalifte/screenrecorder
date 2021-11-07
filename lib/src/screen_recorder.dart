@@ -39,12 +39,13 @@ class ScreenRecorderController {
   int skipped = 0;
 
   bool _record = false;
-
+  bool exporting = false;
   void start() {
     // only start a video, if no recording is in progress
     if (_record == true) {
       return;
     }
+    exporting = false;
     _record = true;
     _binding.addPostFrameCallback(postFrameCallback);
   }
@@ -71,12 +72,13 @@ class ScreenRecorderController {
     }
     try {
       final image = await capture();
-      if (image == null) {
-        print('capture returned null');
+      if (image == null || exporting) {
+        print('capture returned null or exporting in progress');
         return;
       }
       _frames.add(Frame(timestamp, image));
     } catch (e) {
+      print('error in here');
       print(e.toString());
     }
     _binding.addPostFrameCallback(postFrameCallback);
@@ -108,8 +110,11 @@ class ScreenRecorderController {
   }
 
   Future<List<int>?> export() async {
+    exporting = true;
     List<RawFrame> bytes = [];
-    for (final frame in _frames) {
+    List<Frame> Xframes = _frames;
+    for (final frame in Xframes) {
+      // for (final frame in _frames) {
       final i = await frame.image.toByteData(format: ui.ImageByteFormat.png);
       if (i != null) {
         bytes.add(RawFrame(16, i));
@@ -117,14 +122,18 @@ class ScreenRecorderController {
         print('Skipped frame while enconding');
       }
     }
+    // final result = await compute(_export, bytes);
     final result = compute(_export, bytes);
     _frames.clear();
+    exporting = false;
     return result;
   }
 
   static Future<List<int>?> _export(List<RawFrame> frames) async {
+    // final animation = image.Animation();
     final animation = image.Animation();
     animation.backgroundColor = Colors.transparent.value;
+    print(frames.length.toString());
     for (final frame in frames) {
       final iAsBytes = frame.image.buffer.asUint8List();
       final decodedImage = image.decodePng(iAsBytes);
@@ -135,8 +144,17 @@ class ScreenRecorderController {
       }
       decodedImage.duration = frame.durationInMillis;
       animation.addFrame(decodedImage);
+      print('added frame');
     }
-    return image.encodeGifAnimation(animation);
+    //print('returned image is a type of');
+    try {
+      print('trying');
+      var datax = image.encodeGifAnimation(animation);
+      return datax;
+    } catch (error) {
+      print(error.toString());
+      return null;
+    }
   }
 }
 
